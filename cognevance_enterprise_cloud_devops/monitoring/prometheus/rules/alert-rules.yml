@@ -1,0 +1,45 @@
+# ==============================================================================
+# Prometheus Alerting Rules
+# Organization: Cognevance Technologies
+# ==============================================================================
+
+groups:
+  - name: enterprise_devops_alerts
+    rules:
+      - alert: ServiceInstanceDown
+        expr: up{job="enterprise-devops-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          tier: production
+        annotations:
+          summary: "DevOps Application microservice instance is unreachable"
+          description: "Instance {{ $labels.instance }} of job {{ $labels.job }} has been down for over 1 minute."
+
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          tier: production
+        annotations:
+          summary: "High P95 latency detected"
+          description: "P95 latency is exceeding 500ms on endpoint {{ $labels.endpoint }} (current: {{ $value }}s)."
+
+      - alert: ElevatedHttp5xxErrors
+        expr: rate(http_requests_errors_total[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elevated HTTP 5xx error rate"
+          description: "HTTP 5xx error rate has exceeded 5% over the last 5 minutes."
+
+      - alert: KubernetesPodReplicaDeficit
+        expr: kubernetes_active_replicas{deployment="enterprise-devops-app"} < 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kubernetes pod count below minimum target"
+          description: "Active replicas for enterprise-devops-app is currently {{ $value }}, below expected 3."

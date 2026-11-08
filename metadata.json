@@ -1,0 +1,6 @@
+{
+  "name": "Enterprise Cloud Infrastructure & DevOps Automation",
+  "description": "Production-grade Cloud & DevOps monitoring dashboard, Terraform AWS IaC modules, Kubernetes orchestration, CI/CD pipeline, and Prometheus observability for Cognevance Technologies.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

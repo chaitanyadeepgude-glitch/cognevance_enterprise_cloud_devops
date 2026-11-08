@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-enterprise
+  labels:
+    name: devops-enterprise
+    organization: cognevance-technologies
+    environment: production

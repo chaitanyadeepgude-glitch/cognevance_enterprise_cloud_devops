@@ -1,0 +1,21 @@
+# ==============================================================================
+# Example Terraform Variables
+# Copy to terraform.tfvars for custom deployment settings.
+# Never commit credentials or sensitive production values.
+# ==============================================================================
+
+aws_region          = "us-east-1"
+environment         = "production"
+project_name        = "cognevance-devops"
+vpc_cidr            = "10.0.0.0/16"
+availability_zones  = ["us-east-1a", "us-east-1b"]
+public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs= ["10.0.10.0/24", "10.0.20.0/24"]
+enable_nat_gateway  = true
+
+# Set to true ONLY when deploying to actual AWS EKS (Optional, incurs AWS costs)
+# Keep false for local Minikube / Kind workflow demonstrations
+enable_eks_cluster  = false
+cluster_name        = "devops-enterprise-cluster"
+node_instance_types = ["t3.medium"]
+desired_node_count  = 2

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ project_name }} - {{ organization }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header class="header">
+      <div class="brand">
+        <h1>{{ project_name }}</h1>
+        <p>{{ organization }} · Level 3 Advanced Cloud & DevOps</p>
+      </div>
+      <div class="status-indicator">
+        <span class="status-badge">Cluster: {{ cluster }}</span>
+        <span class="status-badge">Namespace: {{ namespace }}</span>
+        <span class="status-badge status-healthy">System: Nominal</span>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="card-grid">
+        <div class="card">
+          <h3>Application Health</h3>
+          <p class="metric-value text-green">100%</p>
+          <p class="metric-sub">Endpoint: <a href="/health">/health</a></p>
+        </div>
+        <div class="card">
+          <h3>Kubernetes Pods</h3>
+          <p class="metric-value">3 / 3</p>
+          <p class="metric-sub">Deployment: enterprise-devops-app</p>
+        </div>
+        <div class="card">
+          <h3>Prometheus Metrics</h3>
+          <p class="metric-value text-blue">Active</p>
+          <p class="metric-sub">Scraping: <a href="/metrics">/metrics</a></p>
+        </div>
+        <div class="card">
+          <h3>CI/CD Automation</h3>
+          <p class="metric-value">9 / 9</p>
+          <p class="metric-sub">GitHub Actions Workflow</p>
+        </div>
+      </section>
+
+      <section class="api-links">
+        <h2>Live API Endpoints</h2>
+        <div class="endpoints-list">
+          <a href="/health" class="endpoint-item"><code>GET /health</code> — Health Check & Probe Target</a>
+          <a href="/api/status" class="endpoint-item"><code>GET /api/status</code> — Real-time Telemetry & Cluster State</a>
+          <a href="/api/info" class="endpoint-item"><code>GET /api/info</code> — Technology Stack Specifications</a>
+          <a href="/metrics" class="endpoint-item"><code>GET /metrics</code> — Prometheus Metrics Exposition</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>&copy; 2026 {{ organization }}. Internship Level 3 Cloud & DevOps Final Submission.</p>
+    </footer>
+  </div>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

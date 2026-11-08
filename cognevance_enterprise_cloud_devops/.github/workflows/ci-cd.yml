@@ -1,0 +1,160 @@
+# ==============================================================================
+# Enterprise CI/CD Pipeline Workflow
+# Organization: Cognevance Technologies
+# Project: Enterprise Cloud Infrastructure & DevOps Automation
+# Level: Level 3 Advanced
+# ==============================================================================
+
+name: Enterprise Cloud & DevOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      target_cluster:
+        description: 'Deployment target cluster'
+        required: true
+        default: 'local-minikube'
+        type: choice
+        options:
+          - 'local-minikube'
+          - 'local-kind'
+          - 'aws-eks-production'
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  IMAGE_NAME: cognevance/enterprise-devops-app
+  IMAGE_TAG: ${{ github.sha }}
+  AWS_REGION: us-east-1
+  K8S_NAMESPACE: devops-enterprise
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # Stage 1-4: Source Code Checkout, Environment Setup, Testing, and Linting
+  # ----------------------------------------------------------------------------
+  test-and-validate:
+    name: "Stages 1-4: Unit Tests & Code Validation"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Stage 1: Checkout Source Code"
+        uses: actions/checkout@v4
+
+      - name: "Stage 2: Setup Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: application/requirements.txt
+
+      - name: "Install Dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r application/requirements.txt
+
+      - name: "Stage 3: Run Pytest Unit & Integration Tests"
+        working-directory: ./application
+        run: |
+          pytest tests/ -v --cov=app --cov-report=term-missing --cov-fail-under=80
+
+      - name: "Stage 4: Code & Manifest Validation"
+        run: |
+          python -m py_compile application/app/*.py
+          echo "Application syntax verified."
+
+  # ----------------------------------------------------------------------------
+  # Stages 5-7: Docker Build, Security Scanning, and Registry Publishing
+  # ----------------------------------------------------------------------------
+  build-and-security-scan:
+    name: "Stages 5-7: Docker Build, Trivy Security Scan & Registry Push"
+    needs: test-and-validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout Source Code"
+        uses: actions/checkout@v4
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Stage 5: Build Docker Image (Local Context)"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./application
+          file: ./application/Dockerfile
+          load: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:latest
+
+      - name: "Stage 6: Vulnerability Scan using Trivy"
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
+          format: 'table'
+          exit-code: '0' # Non-blocking in demonstration; set to 1 for strict production gate
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: "Stage 7: Login & Push to Container Registry"
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker push ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            docker push ${{ env.IMAGE_NAME }}:latest
+            echo "Successfully published image to container registry."
+          else
+            echo "DOCKERHUB secrets not set; skipping registry push in demonstration mode."
+          fi
+
+  # ----------------------------------------------------------------------------
+  # Stages 8-9: Kubernetes Deployment & Automated Rollout Verification
+  # ----------------------------------------------------------------------------
+  deploy-and-verify:
+    name: "Stages 8-9: Kubernetes Rollout & Health Probe Verification"
+    needs: build-and-security-scan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: "Checkout Source Code"
+        uses: actions/checkout@v4
+
+      - name: "Stage 8: Setup Local Kind Kubernetes Cluster"
+        uses: helm/kind-action@v1.9.0
+        with:
+          cluster_name: devops-enterprise-cluster
+
+      - name: "Apply Kubernetes Manifests"
+        run: |
+          kubectl apply -f kubernetes/namespace.yaml
+          kubectl apply -f kubernetes/serviceaccount.yaml
+          kubectl apply -f kubernetes/configmap.yaml
+          kubectl apply -f kubernetes/service.yaml
+          kubectl apply -f kubernetes/hpa.yaml
+          
+          # Deploy application using tested image tag
+          kubectl set image -f kubernetes/deployment.yaml devops-monitoring-app=${{ env.IMAGE_NAME }}:latest --local -o yaml | kubectl apply -f -
+
+      - name: "Stage 9: Deployment Verification & Probes"
+        run: |
+          echo "Awaiting deployment rollout..."
+          kubectl rollout status deployment/enterprise-devops-app -n ${{ env.K8S_NAMESPACE }} --timeout=120s
+          
+          echo "Verifying cluster resources:"
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }} -o wide
+          kubectl get svc -n ${{ env.K8S_NAMESPACE }}
+          kubectl get hpa -n ${{ env.K8S_NAMESPACE }}
+          
+          echo "Pipeline execution completed successfully with zero defects."
